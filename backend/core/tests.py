@@ -49,22 +49,22 @@ class MainTestCase(TestCase):
         self.assertEqual(self.user.profile.storage_set.last().storage_type, 2)
 
     def test_directories(self):
-        from core.models import DirectoryMetaObject, FileMetaObject
+        from core.models import DirMeta, FileMeta
 
         # Create first directory
         self.user.profile.storage_set.first().create_directory(parent=None, name='root-directory')
-        root_directory = DirectoryMetaObject.objects.get(name='root-directory')
+        root_directory = DirMeta.objects.get(name='root-directory')
         self.assertIsNotNone(root_directory)
-        self.assertIsInstance(root_directory, DirectoryMetaObject)
+        self.assertIsInstance(root_directory, DirMeta)
         self.assertEqual(root_directory.name, 'root-directory')
         self.assertFalse(root_directory.has_parent)
         self.assertTrue(root_directory.is_empty)
 
         # Create second directory into first directory
         self.user.profile.storage_set.first().create_directory(parent=root_directory, name='child-directory')
-        child_directory = DirectoryMetaObject.objects.get(name='child-directory')
+        child_directory = DirMeta.objects.get(name='child-directory')
         self.assertIsNotNone(child_directory)
-        self.assertIsInstance(child_directory, DirectoryMetaObject)
+        self.assertIsInstance(child_directory, DirMeta)
         self.assertEqual(child_directory.name, 'child-directory')
         self.assertTrue(child_directory.has_parent)
         self.assertTrue(child_directory.is_empty)
@@ -81,7 +81,7 @@ class MainTestCase(TestCase):
                 size=10 * x)
 
         # All files should be in root directory
-        for filemetaobject in FileMetaObject.objects.filter(parent=root_directory):
+        for filemetaobject in FileMeta.objects.filter(parent=root_directory):
             self.assertIn(filemetaobject, root_directory.get_children())
 
         # Get directories
@@ -94,13 +94,13 @@ class MainTestCase(TestCase):
                 name='test-directory' + str(x))
 
         # All directories should be in second child directory
-        for directorymetaobject in DirectoryMetaObject.objects.filter(parent=child_directory):
+        for directorymetaobject in DirMeta.objects.filter(parent=child_directory):
             self.assertIn(directorymetaobject, child_directory.get_children())
 
         # Rename second file in root directory
-        second_file_id = FileMetaObject.objects.get(name='test-file-2', parent=root_directory).id
+        second_file_id = FileMeta.objects.get(name='test-file-2', parent=root_directory).id
         self.user.profile.storage_set.first().rename_file(
             parent=root_directory,
             id=second_file_id,
             new_name='second-test-file')
-        self.assertEqual(FileMetaObject.objects.get(id=second_file_id).name, 'second-test-file')
+        self.assertEqual(FileMeta.objects.get(id=second_file_id).name, 'second-test-file')
