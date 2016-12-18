@@ -1,0 +1,5 @@
+Django==1.10.4
+psycopg2==2.6.2
+djangorestframework==3.5.3
+bcrypt==3.1.1
+minio==2.0.4

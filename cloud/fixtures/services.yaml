@@ -1,0 +1,6 @@
+- model: core.service
+  pk: 1
+  fields: {name: Free, price: '0.00', capacity: 536870912}
+- model: core.service
+  pk: 2
+  fields: {name: Standard, price: '5000.00', capacity: 1073741824}

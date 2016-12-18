@@ -1,0 +1,15 @@
+- model: auth.user
+  pk: 1
+  fields:
+    password: bcrypt_sha256$$2b$12$NGexIeCIZ54yYSFk..9iJe7/89Snh3aVRvz1iCOLvB1rTCIrxqN2u
+    last_login: null
+    is_superuser: true
+    username: cloud
+    first_name: 'Cloud'
+    last_name: 'Cloud'
+    email: cloud@localhost
+    is_staff: true
+    is_active: true
+    date_joined: 2016-12-17 14:13:18.084475+00:00
+    groups: []
+    user_permissions: []
