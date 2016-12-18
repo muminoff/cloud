@@ -13,12 +13,14 @@ from minio.error import ResponseError
 # Misc
 import uuid
 
+# Choices
+CAPACITY_CHOICES = (
+    (536870912, '512MB'),
+    (1073741824, '1GB'),
+)
+
 
 class Service(models.Model):
-    CAPACITY_CHOICES = (
-        (536870912, '512MB'),
-        (1073741824, '1GB'),
-    )
     name = models.CharField(max_length=100)
     price = models.DecimalField(max_digits=12, decimal_places=2)
     capacity = models.BigIntegerField(choices=CAPACITY_CHOICES, default=536870912)
