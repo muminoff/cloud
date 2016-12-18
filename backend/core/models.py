@@ -12,6 +12,7 @@ from minio.error import ResponseError
 
 # Misc
 import uuid
+import itertools
 
 # Choices
 CAPACITY_CHOICES = (
@@ -92,28 +93,27 @@ class Storage(models.Model):
         content_type = kwargs.get('content_type')
         size = kwargs.get('size')
         
-        if all((name, content_type, size)):
+        if name and content_type and size:
             FileMetaObject.objects.create(
                 storage=self,
                 name=name,
                 parent=parent,
                 content_type=content_type,
                 size=size)
-        else:
-            raise Exception('Not enough parameters to create file.')
+
+        # else:
+        #     raise Exception('Not enough parameters to create file.')
 
     def rename_file(self, parent=None, **kwargs):
-        old_name = kwargs.get('old_name')
+        file_id = kwargs.get('id')
         new_name = kwargs.get('new_name')
         
-        if all((old_name, new_name)):
+        if all((file_id, new_name)):
+            filemetaobject = FileMetaObject.objects.get(id=file_id, storage=self, parent=parent)
 
-            if old_name != new_name:
-                FileMetaObject.objects.filter(
-                    storage=self,
-                    name=old_name,
-                    parent=parent).update(
-                        name=new_name)
+            if filemetaobject.name != new_name:
+                filemetaobject.name = new_name
+                filemetaobject.save()
         else:
             raise Exception('Not enough parameters to rename file.')
 
@@ -132,6 +132,9 @@ class DirectoryMetaObject(MetaObject):
     name = models.CharField(max_length=4096, null=False, blank=False)
     parent = models.ForeignKey('self', null=True)
 
+    class Meta:
+        ordering = ('name', '-created_at',)
+
     def __str__(self):
         return self.name
 
@@ -140,10 +143,18 @@ class DirectoryMetaObject(MetaObject):
         return self.parent is not None
 
     @property
-    def has_children(self):
-        return any([
+    def is_empty(self):
+        return not any([
             FileMetaObject.objects.filter(parent=self).exists(),
             DirectoryMetaObject.objects.filter(parent=self).exists()])
+
+    def get_children(self):
+        return list(itertools.chain(
+            FileMetaObject.objects.filter(parent=self),
+            DirectoryMetaObject.objects.filter(parent=self)))
+
+    def get_directories(self):
+        return DirectoryMetaObject.objects.filter(parent=self)
 
 
 class FileMetaObject(MetaObject):
@@ -158,6 +169,10 @@ class FileMetaObject(MetaObject):
 
     def __str__(self):
         return self.name
+
+    @property
+    def has_parent(self):
+        return self.parent is not None
 
 # Create user profile
 @receiver(signals.post_save, sender=User)
