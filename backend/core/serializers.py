@@ -2,13 +2,13 @@
 from rest_framework import serializers
 
 # Core
-from core.models import FileMetaObject
+from core.models import FileMeta
 
 
-class FileMetaObjectSerializer(serializers.ModelSerializer):
+class FileMetaSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = FileMetaObject
+        model = FileMeta
         fields = (
             'id', 'storage', 'created_at',
             'modified_at', 'name', 'parent',

@@ -5,6 +5,7 @@ from django.template import defaultfilters
 from django.dispatch import receiver
 from django.db.models import signals, Q
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 # Minio
 from minio import Minio
@@ -27,7 +28,7 @@ class Service(models.Model):
     capacity = models.BigIntegerField(choices=CAPACITY_CHOICES, default=536870912)
 
     def __str__(self):
-        return "{} ({})".format(
+        return '{} ({})'.format(
         self.name, defaultfilters.filesizeformat(self.capacity))
 
 
@@ -46,11 +47,11 @@ class Storage(models.Model):
 
     def __str__(self):
         storage_types = {
-            1: 'main storage',
-            2: 'trash storage'
+            1: 'main',
+            2: 'trash'
         }
 
-        return "{0} ({1})".format(
+        return '{0} ({1})'.format(
             storage_types[self.storage_type],
             self.owner)
 
@@ -58,7 +59,7 @@ class Storage(models.Model):
         name = kwargs.get('name')
         
         if name:
-            DirectoryMetaObject.objects.create(
+            DirMeta.objects.create(
                 storage=self,
                 name=name,
                 parent=parent)
@@ -71,22 +72,22 @@ class Storage(models.Model):
         size = kwargs.get('size')
         
         if name and content_type and size:
-            FileMetaObject.objects.create(
+            FileMeta.objects.create(
                 storage=self,
                 name=name,
                 parent=parent,
                 content_type=content_type,
                 size=size)
 
-        # else:
-        #     raise Exception('Not enough parameters to create file.')
+        else:
+            raise Exception('Not enough parameters to create file.')
 
     def rename_file(self, parent=None, **kwargs):
         file_id = kwargs.get('id')
         new_name = kwargs.get('new_name')
         
         if all((file_id, new_name)):
-            filemetaobject = FileMetaObject.objects.get(id=file_id, storage=self, parent=parent)
+            filemetaobject = FileMeta.objects.get(id=file_id, storage=self, parent=parent)
 
             if filemetaobject.name != new_name:
                 filemetaobject.name = new_name
@@ -105,15 +106,26 @@ class MetaObject(models.Model):
         abstract = True
 
 
-class DirectoryMetaObject(MetaObject):
+class DirMeta(MetaObject):
     name = models.CharField(max_length=4096, null=False, blank=False)
-    parent = models.ForeignKey('self', null=True)
+    parent = models.ForeignKey('self', null=True, blank=False)
 
     class Meta:
-        ordering = ('name', '-created_at',)
+        unique_together = ('name', 'parent')
+        index_together = ('name', 'parent')
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        if DirMeta.objects.filter(name=self.name, parent__isnull=True).exists():
+            raise ValidationError("Duplicate directory.")
+
+        super(DirMeta, self).clean()
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super(DirMeta, self).save(*args, **kwargs)
 
     @property
     def has_parent(self):
@@ -122,30 +134,40 @@ class DirectoryMetaObject(MetaObject):
     @property
     def is_empty(self):
         return not any([
-            FileMetaObject.objects.filter(parent=self).exists(),
-            DirectoryMetaObject.objects.filter(parent=self).exists()])
+            FileMeta.objects.filter(parent=self).exists(),
+            DirMeta.objects.filter(parent=self).exists()])
 
     def get_children(self):
         return list(itertools.chain(
-            FileMetaObject.objects.filter(parent=self),
-            DirectoryMetaObject.objects.filter(parent=self)))
+            FileMeta.objects.filter(parent=self),
+            DirMeta.objects.filter(parent=self)))
 
     def get_directories(self):
-        return DirectoryMetaObject.objects.filter(parent=self)
+        return DirMeta.objects.filter(parent=self)
 
 
-class FileMetaObject(MetaObject):
-    name = models.CharField(max_length=4096, null=False, blank=False)
-    parent = models.ForeignKey(DirectoryMetaObject, null=True)
-    content_type = models.CharField(max_length=100, null=False, blank=False)
+class FileMeta(MetaObject):
+    name = models.CharField(max_length=4096)
+    parent = models.ForeignKey(DirMeta, null=True, blank=False)
+    content_type = models.CharField(max_length=100)
     size = models.BigIntegerField()
 
     class Meta:
         unique_together = ('name', 'parent')
-        index_together = ["name", "parent"]
+        index_together = ('name', 'parent')
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        if FileMeta.objects.filter(name=self.name, parent__isnull=True).exists():
+            raise ValidationError("Duplicate directory.")
+
+        super(FileMeta, self).clean()
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super(FileMeta, self).save(*args, **kwargs)
 
     @property
     def has_parent(self):

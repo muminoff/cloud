@@ -2,14 +2,14 @@
 from rest_framework import routers, viewsets
 
 # Core
-from core.models import FileMetaObject
-from core.serializers import FileMetaObjectSerializer
+from core.models import FileMeta
+from core.serializers import FileMetaSerializer
 
 
-class FileMetaObjectViewSet(viewsets.ModelViewSet):
-    queryset = FileMetaObject.objects.all()
-    serializer_class = FileMetaObjectSerializer
+class FileMetaViewSet(viewsets.ModelViewSet):
+    queryset = FileMeta.objects.all()
+    serializer_class = FileMetaSerializer
 
 
 router = routers.DefaultRouter()
-router.register(r'files', FileMetaObjectViewSet)
+router.register(r'files', FileMetaViewSet)
