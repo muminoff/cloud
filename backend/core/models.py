@@ -40,32 +40,9 @@ class Profile(models.Model):
         return self.user.username
 
 
-class StorageMetaObjectQuerySet(models.QuerySet):
-    
-    def directories(self):
-        return DirectoryMetaObject.objects.filter(storage=self)
-
-    def files(self):
-        return FileMetaObject.objects.filter(storage=self)
-
-
-class StorageManager(models.Manager):
-
-    def get_queryset(self):
-        return StorageMetaObjectQuerySet(self.model, using=self._db)
-
-    def directories(self):
-        return self.get_queryset().directories()
-
-    def files(self):
-        return self.get_queryset().files()
-
-
 class Storage(models.Model):
     storage_type = models.SmallIntegerField(default=0)
     owner = models.ForeignKey(Profile, on_delete=models.CASCADE)
-
-    objects = StorageManager()
 
     def __str__(self):
         storage_types = {
