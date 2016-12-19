@@ -8,6 +8,9 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 
+# MPTT
+from mptt.models import MPTTModel, TreeForeignKey
+
 # Minio
 from minio import Minio
 from minio.error import ResponseError
@@ -180,7 +183,7 @@ class Storage(models.Model):
             Q(content_type__name__icontains='video')).order_by('-modified_at')
 
 
-class MetaObject(models.Model):
+class MetaObject(MPTTModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     storage = models.ForeignKey(Storage, null=False, blank=False)
     created_at = models.DateTimeField(auto_now=True, db_index=True)
@@ -192,12 +195,15 @@ class MetaObject(models.Model):
 
 class DirMeta(MetaObject):
     name = models.CharField(max_length=4096, null=False, blank=False, db_index=True)
-    parent = models.ForeignKey('self', null=True, blank=False, related_name='children_meta')
+    parent = TreeForeignKey('self', null=True, blank=False, related_name='children_dirs', db_index=True)
 
     class Meta:
         unique_together = ('storage', 'name', 'parent')
         index_together = ('storage', 'name', 'parent')
         ordering = ('name',)
+
+    class MPTTMeta:
+        order_insertion_by = ['name']
 
     def __str__(self):
         return self.name
@@ -243,7 +249,7 @@ class MimeContentType(models.Model):
 
 class FileMeta(MetaObject):
     name = models.CharField(max_length=4096, db_index=True)
-    parent = models.ForeignKey(DirMeta, null=True, blank=False)
+    parent = TreeForeignKey(DirMeta, null=True, blank=False, related_name='children_files', db_index=True)
     content_type = models.ForeignKey(MimeContentType, null=True, blank=True)
     size = models.BigIntegerField()
 
