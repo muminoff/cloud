@@ -57,22 +57,20 @@ class Storage(models.Model):
             self.owner)
 
     def create_directory(self, parent=None, **kwargs):
-        name = kwargs.get('name')
+        name = kwargs.get('name', None)
         
         if name:
             DirMeta.objects.create(
                 storage=self,
                 name=name,
                 parent=parent)
-        else:
-            raise Exception('Not enough parameters to create directory.')
 
     def create_file(self, parent=None, **kwargs):
-        name = kwargs.get('name')
-        content_type = kwargs.get('content_type')
-        size = kwargs.get('size')
+        name = kwargs.get('name', None)
+        content_type = kwargs.get('content_type', None)
+        size = kwargs.get('size', None)
         
-        if name and content_type and size:
+        if all([name, content_type, size]):
             FileMeta.objects.create(
                 storage=self,
                 name=name,
@@ -80,21 +78,12 @@ class Storage(models.Model):
                 content_type=content_type,
                 size=size)
 
-        else:
-            raise Exception('Not enough parameters to create file.')
-
     def rename_file(self, parent=None, **kwargs):
-        file_id = kwargs.get('id')
-        new_name = kwargs.get('new_name')
-        
-        if all((file_id, new_name)):
-            filemetaobject = FileMeta.objects.get(id=file_id, storage=self, parent=parent)
+        id = kwargs.get('id', None)
+        name = kwargs.get('name', None)
 
-            if filemetaobject.name != new_name:
-                filemetaobject.name = new_name
-                filemetaobject.save()
-        else:
-            raise Exception('Not enough parameters to rename file.')
+        if all([id, name]):
+            FileMeta.objects.filter(id=id, storage=self, parent=parent).update(name=name)
 
     def browse(self, parent=None):
         return list(itertools.chain(
@@ -141,16 +130,8 @@ class DirMeta(MetaObject):
     @property
     def is_empty(self):
         return not any([
-            FileMeta.objects.filter(parent=self).exists(),
-            DirMeta.objects.filter(parent=self).exists()])
-
-    def get_children(self):
-        return list(itertools.chain(
-            DirMeta.objects.filter(parent=self)),
-            FileMeta.objects.filter(parent=self))
-
-    def get_directories(self):
-        return DirMeta.objects.filter(parent=self)
+            DirMeta.objects.filter(parent=self).exists(),
+            FileMeta.objects.filter(parent=self).exists()])
 
 
 class FileMeta(MetaObject):

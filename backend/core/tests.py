@@ -48,7 +48,7 @@ class MainTestCase(TestCase):
         self.assertEqual(self.user.profile.storage_set.first().storage_type, 1)
         self.assertEqual(self.user.profile.storage_set.last().storage_type, 2)
 
-    def test_directories(self):
+    def test_directories_and_files(self):
         from core.models import DirMeta, FileMeta
 
         # Create first directory
@@ -69,9 +69,6 @@ class MainTestCase(TestCase):
         self.assertTrue(child_directory.has_parent)
         self.assertTrue(child_directory.is_empty)
 
-        # Get children
-        self.assertIn(child_directory, root_directory.get_children())
-
         # Create ten files into first root directory
         for x in range(1, 11):
             self.user.profile.storage_set.first().create_file(
@@ -82,10 +79,10 @@ class MainTestCase(TestCase):
 
         # All files should be in root directory
         for filemetaobject in FileMeta.objects.filter(parent=root_directory):
-            self.assertIn(filemetaobject, root_directory.get_children())
+            self.assertIn(filemetaobject, self.user.profile.storage_set.first().browse(parent=root_directory))
 
         # Get directories
-        self.assertIn(child_directory, root_directory.get_directories())
+        self.assertIn(child_directory, self.user.profile.storage_set.first().browse(parent=root_directory))
 
         # Create fifty directories into second child directory
         for x in range(1, 51):
@@ -95,12 +92,12 @@ class MainTestCase(TestCase):
 
         # All directories should be in second child directory
         for directorymetaobject in DirMeta.objects.filter(parent=child_directory):
-            self.assertIn(directorymetaobject, child_directory.get_children())
+            self.assertIn(directorymetaobject, self.user.profile.storage_set.first().browse())
 
         # Rename second file in root directory
         second_file_id = FileMeta.objects.get(name='test-file-2', parent=root_directory).id
         self.user.profile.storage_set.first().rename_file(
             parent=root_directory,
             id=second_file_id,
-            new_name='second-test-file')
+            name='second-test-file')
         self.assertEqual(FileMeta.objects.get(id=second_file_id).name, 'second-test-file')
