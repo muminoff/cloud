@@ -21,22 +21,22 @@ class Migration(migrations.Migration):
             name='DirMeta',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created_at', models.DateTimeField(auto_now=True)),
-                ('modified_at', models.DateTimeField(auto_now_add=True)),
                 ('name', models.CharField(max_length=4096)),
                 ('parent', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='core.DirMeta')),
+                ('created_at', models.DateTimeField(auto_now=True)),
+                ('modified_at', models.DateTimeField(auto_now_add=True)),
             ],
         ),
         migrations.CreateModel(
             name='FileMeta',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created_at', models.DateTimeField(auto_now=True)),
-                ('modified_at', models.DateTimeField(auto_now_add=True)),
                 ('name', models.CharField(max_length=4096)),
                 ('content_type', models.CharField(max_length=100)),
                 ('size', models.BigIntegerField()),
                 ('parent', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='core.DirMeta')),
+                ('created_at', models.DateTimeField(auto_now=True)),
+                ('modified_at', models.DateTimeField(auto_now_add=True)),
             ],
         ),
         migrations.CreateModel(

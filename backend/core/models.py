@@ -3,7 +3,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.template import defaultfilters
 from django.dispatch import receiver
-from django.db.models import signals, Q
+from django.db.models import signals, Sum
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
@@ -49,12 +49,20 @@ class Storage(models.Model):
     def __str__(self):
         storage_types = {
             1: 'main',
-            2: 'trash'
+            2: 'trash',
+            3: 'thumb'
         }
 
         return '{0} ({1})'.format(
             storage_types[self.storage_type],
             self.owner)
+
+    @property
+    def total_size(self):
+        if FileMeta.objects.filter(storage=self).exists():
+            return FileMeta.objects.filter(storage=self).aggregate(total_size=Sum('size')).get('total_size')
+        
+        return 0
 
     def create_directory(self, parent=None, **kwargs):
         name = kwargs.get('name', None)
@@ -179,3 +187,9 @@ def create_main_storage(sender, instance, created, **kwargs):
 def create_trash_storage(sender, instance, created, **kwargs):
     if created:
         Storage.objects.create(storage_type=2, owner=instance)
+
+# Create thumb storage for user profile
+@receiver(signals.post_save, sender=Profile)
+def create_thumb_storage(sender, instance, created, **kwargs):
+    if created:
+        Storage.objects.create(storage_type=3, owner=instance)

@@ -45,8 +45,9 @@ class MainTestCase(TestCase):
         self.assertEqual(self.user.profile.language, settings.LANGUAGE_CODE)
 
     def test_user_profile_storage(self):
-        self.assertEqual(self.user.profile.storage_set.first().storage_type, 1)
-        self.assertEqual(self.user.profile.storage_set.last().storage_type, 2)
+        self.assertEqual(self.user.profile.storage_set.all()[0].storage_type, 1)
+        self.assertEqual(self.user.profile.storage_set.all()[1].storage_type, 2)
+        self.assertEqual(self.user.profile.storage_set.all()[2].storage_type, 3)
 
     def test_directories_and_files(self):
         from core.models import DirMeta, FileMeta
@@ -101,3 +102,7 @@ class MainTestCase(TestCase):
             id=second_file_id,
             name='second-test-file')
         self.assertEqual(FileMeta.objects.get(id=second_file_id).name, 'second-test-file')
+
+        total_size = sum(range(1, 11)) * 10
+        self.assertGreater(self.user.profile.storage_set.first().total_size, 0)
+        self.assertEqual(self.user.profile.storage_set.first().total_size, total_size)
