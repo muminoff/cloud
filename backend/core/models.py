@@ -6,6 +6,7 @@ from django.dispatch import receiver
 from django.db.models import signals, Q
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.utils.translation import ugettext_lazy as _
 
 # Minio
 from minio import Minio
@@ -95,6 +96,11 @@ class Storage(models.Model):
         else:
             raise Exception('Not enough parameters to rename file.')
 
+    def browse(self, parent=None):
+        return list(itertools.chain(
+            DirMeta.objects.filter(parent=parent),
+            FileMeta.objects.filter(parent=parent)))
+
 
 class MetaObject(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -113,13 +119,14 @@ class DirMeta(MetaObject):
     class Meta:
         unique_together = ('name', 'parent')
         index_together = ('name', 'parent')
+        ordering = ('name',)
 
     def __str__(self):
         return self.name
 
     def clean(self):
         if DirMeta.objects.filter(name=self.name, parent__isnull=True).exists():
-            raise ValidationError("Duplicate directory.")
+            raise ValidationError(_('Duplicate directory name.'))
 
         super(DirMeta, self).clean()
 
@@ -139,8 +146,8 @@ class DirMeta(MetaObject):
 
     def get_children(self):
         return list(itertools.chain(
-            FileMeta.objects.filter(parent=self),
-            DirMeta.objects.filter(parent=self)))
+            DirMeta.objects.filter(parent=self)),
+            FileMeta.objects.filter(parent=self))
 
     def get_directories(self):
         return DirMeta.objects.filter(parent=self)
@@ -155,13 +162,14 @@ class FileMeta(MetaObject):
     class Meta:
         unique_together = ('name', 'parent')
         index_together = ('name', 'parent')
+        ordering = ('name',)
 
     def __str__(self):
         return self.name
 
     def clean(self):
         if FileMeta.objects.filter(name=self.name, parent__isnull=True).exists():
-            raise ValidationError("Duplicate directory.")
+            raise ValidationError(_('Duplicate file name.'))
 
         super(FileMeta, self).clean()
 
