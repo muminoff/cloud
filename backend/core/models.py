@@ -102,8 +102,15 @@ class Storage(models.Model):
                 parent=parent,
                 content_type=content_type,
                 size=size)
+    
+    def rename_dirmeta(self, parent=None, **kwargs):
+        id = kwargs.get('id', None)
+        name = kwargs.get('name', None)
 
-    def rename_file(self, parent=None, **kwargs):
+        if all([id, name]):
+            DirMeta.objects.filter(id=id, storage=self, parent=parent).update(name=name)
+
+    def rename_filemeta(self, parent=None, **kwargs):
         id = kwargs.get('id', None)
         name = kwargs.get('name', None)
 

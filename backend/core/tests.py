@@ -94,9 +94,17 @@ class MainTestCase(TestCase):
         for directorymetaobject in DirMeta.objects.filter(parent=child_directory):
             self.assertIn(directorymetaobject, self.user.profile.storage_set.first().browse())
 
+        # Rename thirtieth child directory
+        thirtieth_child_directory_id = DirMeta.objects.get(name='test-directory30').id
+        self.user.profile.storage_set.first().rename_dirmeta(
+            parent=root_directory,
+            id=thirtieth_child_directory_id,
+            name='thirtieth-test-directory')
+        self.assertEqual(DirMeta.objects.get(id=thirtieth_child_directory_id).name, 'thirtieth-test-directory')
+
         # Rename second file in root directory
         second_file_id = FileMeta.objects.get(name='test-file-2.txt', parent=root_directory).id
-        self.user.profile.storage_set.first().rename_file(
+        self.user.profile.storage_set.first().rename_filemeta(
             parent=root_directory,
             id=second_file_id,
             name='second-test-file')
