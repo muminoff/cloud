@@ -1,6 +1,0 @@
-- model: core.storage
-  pk: 1
-  fields: {storage_type: 1, owner: 1}
-- model: core.storage
-  pk: 2
-  fields: {storage_type: 2, owner: 1}

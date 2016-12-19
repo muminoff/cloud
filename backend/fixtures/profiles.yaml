@@ -1,3 +1,0 @@
-- model: core.profile
-  pk: 1
-  fields: {user: 1, service: 1, language: en}

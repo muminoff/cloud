@@ -53,7 +53,7 @@ class MainTestCase(TestCase):
         from core.models import DirMeta, FileMeta
 
         # Create first directory
-        self.user.profile.storage_set.first().create_directory(parent=None, name='root-directory')
+        self.user.profile.storage_set.first().create_dirmeta(parent=None, name='root-directory')
         root_directory = DirMeta.objects.get(name='root-directory')
         self.assertIsNotNone(root_directory)
         self.assertIsInstance(root_directory, DirMeta)
@@ -62,7 +62,7 @@ class MainTestCase(TestCase):
         self.assertTrue(root_directory.is_empty)
 
         # Create second directory into first directory
-        self.user.profile.storage_set.first().create_directory(parent=root_directory, name='child-directory')
+        self.user.profile.storage_set.first().create_dirmeta(parent=root_directory, name='child-directory')
         child_directory = DirMeta.objects.get(name='child-directory')
         self.assertIsNotNone(child_directory)
         self.assertIsInstance(child_directory, DirMeta)
@@ -72,10 +72,9 @@ class MainTestCase(TestCase):
 
         # Create ten files into first root directory
         for x in range(1, 11):
-            self.user.profile.storage_set.first().create_file(
+            self.user.profile.storage_set.first().create_filemeta(
                 parent=root_directory,
-                name='test-file-' + str(x),
-                content_type='text',
+                name='test-file-' + str(x) + '.txt',
                 size=10 * x)
 
         # All files should be in root directory
@@ -87,7 +86,7 @@ class MainTestCase(TestCase):
 
         # Create fifty directories into second child directory
         for x in range(1, 51):
-            self.user.profile.storage_set.first().create_directory(
+            self.user.profile.storage_set.first().create_dirmeta(
                 parent=root_directory,
                 name='test-directory' + str(x))
 
@@ -96,7 +95,7 @@ class MainTestCase(TestCase):
             self.assertIn(directorymetaobject, self.user.profile.storage_set.first().browse())
 
         # Rename second file in root directory
-        second_file_id = FileMeta.objects.get(name='test-file-2', parent=root_directory).id
+        second_file_id = FileMeta.objects.get(name='test-file-2.txt', parent=root_directory).id
         self.user.profile.storage_set.first().rename_file(
             parent=root_directory,
             id=second_file_id,

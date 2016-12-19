@@ -3,7 +3,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.template import defaultfilters
 from django.dispatch import receiver
-from django.db.models import signals, Sum
+from django.db.models import signals, Sum, Q
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
@@ -74,7 +74,7 @@ class Storage(models.Model):
         
         return 0
 
-    def create_directory(self, parent=None, **kwargs):
+    def create_dirmeta(self, parent=None, **kwargs):
         name = kwargs.get('name', None)
         
         if name:
@@ -83,10 +83,17 @@ class Storage(models.Model):
                 name=name,
                 parent=parent)
 
-    def create_file(self, parent=None, **kwargs):
+    def create_filemeta(self, parent=None, **kwargs):
         name = kwargs.get('name', None)
         content_type = kwargs.get('content_type', None)
         size = kwargs.get('size', None)
+
+        if not content_type:
+            filename, extension = name.split('.') if '.' in name else (name, name)
+            try:
+                content_type = MimeContentType.objects.get(extension=extension)
+            except MimeContentType.DoesNotExist:
+                content_type = MimeContentType.objects.create(name=filename, extension=extension)
         
         if all([name, content_type, size]):
             FileMeta.objects.create(
@@ -105,13 +112,62 @@ class Storage(models.Model):
 
     def browse(self, parent=None):
         return list(itertools.chain(
-            DirMeta.objects.filter(parent=parent),
-            FileMeta.objects.filter(parent=parent)))
+            DirMeta.objects.filter(storage=self, parent=parent),
+            FileMeta.objects.filter(storage=self, parent=parent)))
+
+    def documents(self):
+        document_mime_types = (
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.template',
+            'application/vnd.ms-word.document.macroEnabled.12',
+            'application/vnd.ms-word.template.macroEnabled.12',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.template',
+            'application/vnd.ms-excel.sheet.macroEnabled.12',
+            'application/vnd.ms-excel.template.macroEnabled.12',
+            'application/vnd.ms-excel.addin.macroEnabled.12',
+            'application/vnd.ms-excel.sheet.binary.macroEnabled.12',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application/vnd.openxmlformats-officedocument.presentationml.template',
+            'application/vnd.openxmlformats-officedocument.presentationml.slideshow',
+            'application/vnd.ms-powerpoint.addin.macroEnabled.12',
+            'application/vnd.ms-powerpoint.presentation.macroEnabled.12',
+            'application/vnd.ms-powerpoint.template.macroEnabled.12',
+            'application/vnd.ms-powerpoint.slideshow.macroEnabled.12',
+        )
+        return FileMeta.objects.filter(
+            Q(storage=self),
+            Q(content_type__name__in=document_mime_types)).order_by('-modified_at')
+
+    def images(self):
+        image_mime_types = (
+            'image/gif',
+            'image/jpeg',
+            'image/png',
+            'image/svg+xml',
+        )
+        return FileMeta.objects.filter(
+            Q(storage=self),
+            Q(content_type__name__in=image_mime_types)).order_by('-modified_at')
+
+    def audios(self):
+        return FileMeta.objects.filter(
+            Q(storage=self),
+            Q(content_type__name__icontains='audio')).order_by('-modified_at')
+
+    def videos(self):
+        return FileMeta.objects.filter(
+            Q(storage=self),
+            Q(content_type__name__icontains='video')).order_by('-modified_at')
 
 
 class MetaObject(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     storage = models.ForeignKey(Storage, null=False, blank=False)
+    path = models.CharField(max_length=4096, null=True, blank=True)
     created_at = models.DateTimeField(auto_now=True, db_index=True)
     modified_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
@@ -121,7 +177,7 @@ class MetaObject(models.Model):
 
 class DirMeta(MetaObject):
     name = models.CharField(max_length=4096, null=False, blank=False, db_index=True)
-    parent = models.ForeignKey('self', null=True, blank=False)
+    parent = models.ForeignKey('self', null=True, blank=False, related_name='children')
 
     class Meta:
         unique_together = ('name', 'parent')
@@ -130,6 +186,14 @@ class DirMeta(MetaObject):
 
     def __str__(self):
         return self.name
+
+    @property
+    def content_type(self):
+        return None
+
+    @property
+    def size(self):
+        return 0
 
     def clean(self):
         if DirMeta.objects.filter(name=self.name, parent__isnull=True).exists():
@@ -157,6 +221,9 @@ class MimeContentType(models.Model):
     name = models.CharField(max_length=4096, db_index=True)
     extension = models.CharField(max_length=16, db_index=True)
 
+    def __str__(self):
+        return self.name
+
 
 class FileMeta(MetaObject):
     name = models.CharField(max_length=4096, db_index=True)
@@ -173,7 +240,7 @@ class FileMeta(MetaObject):
         return self.name
 
     def clean(self):
-        if FileMeta.objects.filter(name=self.name, parent__isnull=True).exists():
+        if FileMeta.objects.filter(Q(name=self.name), Q(parent__isnull=True)).exists():
             raise ValidationError(_('Duplicate file name.'))
 
         super(FileMeta, self).clean()
