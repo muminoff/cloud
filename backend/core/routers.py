@@ -1,15 +1,19 @@
 # DRF
 from rest_framework import routers, viewsets
+from rest_framework.response import Response
 
 # Core
-from core.models import FileMeta
+from core.models import Storage
 from core.serializers import FileMetaSerializer
 
 
-class FileMetaViewSet(viewsets.ModelViewSet):
-    queryset = FileMeta.objects.all()
-    serializer_class = FileMetaSerializer
+class MainStorageViewSet(viewsets.ViewSet):
+
+    def list(self, request):
+        storage = Storage.objects.get(owner=request.user.profile)
+        queryset = storage.browse()
+        return Response(serializer.data)
 
 
 router = routers.DefaultRouter()
-router.register(r'files', FileMetaViewSet)
+# router.register(r'browse', MainStorageViewSet)

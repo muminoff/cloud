@@ -41,6 +41,15 @@ class Profile(models.Model):
     def __str__(self):
         return self.user.username
 
+    def main_storage(self):
+        return Storage.objects.get(owner=self, storage_type=0)
+
+    def trash_storage(self):
+        return Storage.objects.get(owner=self, storage_type=1)
+
+    def thumb_storage(self):
+        return Storage.objects.get(owner=self, storage_type=2)
+
 
 class Storage(models.Model):
     storage_type = models.SmallIntegerField(default=0)
@@ -174,7 +183,6 @@ class Storage(models.Model):
 class MetaObject(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     storage = models.ForeignKey(Storage, null=False, blank=False)
-    path = models.CharField(max_length=4096, null=True, blank=True)
     created_at = models.DateTimeField(auto_now=True, db_index=True)
     modified_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
@@ -184,15 +192,26 @@ class MetaObject(models.Model):
 
 class DirMeta(MetaObject):
     name = models.CharField(max_length=4096, null=False, blank=False, db_index=True)
-    parent = models.ForeignKey('self', null=True, blank=False, related_name='children')
+    parent = models.ForeignKey('self', null=True, blank=False, related_name='children_meta')
 
     class Meta:
-        unique_together = ('name', 'parent')
-        index_together = ('name', 'parent')
+        unique_together = ('storage', 'name', 'parent')
+        index_together = ('storage', 'name', 'parent')
         ordering = ('name',)
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        if DirMeta.objects.filter(
+            Q(storage=self.storage), Q(name=self.name), Q(parent__isnull=True)).exists():
+            raise ValidationError(_('Duplicate directory name.'))
+
+        super(DirMeta, self).clean()
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super(DirMeta, self).save(*args, **kwargs)
 
     @property
     def content_type(self):
@@ -201,16 +220,6 @@ class DirMeta(MetaObject):
     @property
     def size(self):
         return 0
-
-    def clean(self):
-        if DirMeta.objects.filter(name=self.name, parent__isnull=True).exists():
-            raise ValidationError(_('Duplicate directory name.'))
-
-        super(DirMeta, self).clean()
-
-    def save(self, *args, **kwargs):
-        self.clean()
-        super(DirMeta, self).save(*args, **kwargs)
 
     @property
     def has_parent(self):
@@ -239,15 +248,17 @@ class FileMeta(MetaObject):
     size = models.BigIntegerField()
 
     class Meta:
-        unique_together = ('name', 'parent')
-        index_together = ('name', 'parent')
+        unique_together = ('storage', 'name', 'parent')
+        index_together = ('storage', 'name', 'parent')
+        ordering = ('name',)
+
         ordering = ('name',)
 
     def __str__(self):
         return self.name
 
     def clean(self):
-        if FileMeta.objects.filter(Q(name=self.name), Q(parent__isnull=True)).exists():
+        if FileMeta.objects.filter(Q(storage=self.storage), Q(name=self.name), Q(parent__isnull=True)).exists():
             raise ValidationError(_('Duplicate file name.'))
 
         super(FileMeta, self).clean()
