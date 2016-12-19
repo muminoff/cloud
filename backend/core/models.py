@@ -58,6 +58,16 @@ class Storage(models.Model):
             self.owner)
 
     @property
+    def capacity_quota(self):
+        quota_map = {
+            1: self.owner.service.capacity,
+            2: (self.owner.service.capacity / 10),
+            3: self.owner.service.capacity
+        }
+
+        return quota_map[self.storage_type]
+
+    @property
     def total_size(self):
         if FileMeta.objects.filter(storage=self).exists():
             return FileMeta.objects.filter(storage=self).aggregate(total_size=Sum('size')).get('total_size')
@@ -102,15 +112,15 @@ class Storage(models.Model):
 class MetaObject(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     storage = models.ForeignKey(Storage, null=False, blank=False)
-    created_at = models.DateTimeField(auto_now=True)
-    modified_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now=True, db_index=True)
+    modified_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         abstract = True
 
 
 class DirMeta(MetaObject):
-    name = models.CharField(max_length=4096, null=False, blank=False)
+    name = models.CharField(max_length=4096, null=False, blank=False, db_index=True)
     parent = models.ForeignKey('self', null=True, blank=False)
 
     class Meta:
@@ -142,10 +152,16 @@ class DirMeta(MetaObject):
             FileMeta.objects.filter(parent=self).exists()])
 
 
+class MimeContentType(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=4096, db_index=True)
+    extension = models.CharField(max_length=16, db_index=True)
+
+
 class FileMeta(MetaObject):
-    name = models.CharField(max_length=4096)
+    name = models.CharField(max_length=4096, db_index=True)
     parent = models.ForeignKey(DirMeta, null=True, blank=False)
-    content_type = models.CharField(max_length=100)
+    content_type = models.ForeignKey(MimeContentType, null=True, blank=True)
     size = models.BigIntegerField()
 
     class Meta:
